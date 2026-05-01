@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SasMart Absensi</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+
+<div class="p-6">
+  <!-- HEADER -->
+  <div class="flex items-center gap-4 mb-6">
+    <img src="logo.png" class="w-20" />
+    <div>
+      <h1 class="text-2xl font-bold">SasMart Absensi</h1>
+      <p class="text-sm text-gray-600">Belanja Berkah, Pelayanan Ramah</p>
+    </div>
+  </div>
+
+  <!-- FORM ABSEN -->
+  <div class="bg-white p-4 rounded-xl shadow mb-6">
+    <h2 class="font-semibold mb-2">Absen Karyawan</h2>
+    <input id="nama" type="text" placeholder="Nama Karyawan" class="border p-2 rounded w-full mb-2" />
+    <select id="shift" class="border p-2 rounded w-full mb-2">
+      <option value="Shift 1">Shift 1 (06:00-14:00)</option>
+      <option value="Shift 2">Shift V2 (14:00-22:00)</option>
+    </select>
+    <button onclick="absen()" class="bg-green-500 text-white px-4 py-2 rounded">Absen</button>
+  </div>
+
+  <!-- ADMIN LOGIN -->
+  <div class="bg-white p-4 rounded-xl shadow mb-6">
+    <h2 class="font-semibold mb-2">Admin</h2>
+    <input id="adminPass" type="password" placeholder="Password Admin" class="border p-2 rounded w-full mb-2" />
+    <button onclick="loginAdmin()" class="bg-blue-500 text-white px-4 py-2 rounded">Login</button>
+  </div>
+
+  <!-- DATA ABSEN -->
+  <div class="bg-white p-4 rounded-xl shadow">
+    <h2 class="font-semibold mb-2">Data Kehadiran</h2>
+    <table class="w-full text-sm" id="tabel">
+      <thead>
+        <tr class="bg-gray-200">
+          <th>Nama</th>
+          <th>Shift</th>
+          <th>Jam</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button onclick="exportExcel()" class="mt-4 bg-purple-500 text-white px-4 py-2 rounded">Export Excel</button>
+  </div>
+
+  <!-- RANKING -->
+  <div class="bg-white p-4 rounded-xl shadow mt-6">
+    <h2 class="font-semibold mb-2">Ranking Kehadiran</h2>
+    <ul id="ranking"></ul>
+  </div>
+
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem('absen')) || [];
+let isAdmin = false;
+
+function render() {
+  const tbody = document.querySelector('#tabel tbody');
+  tbody.innerHTML = '';
+
+  let count = {};
+
+  data.forEach((d,i)=>{
+    if(!count[d.nama]) count[d.nama]=0;
+    if(d.status==='Valid') count[d.nama]++;
+
+    tbody.innerHTML += `
+      <tr class="border-b">
+        <td>${d.nama}</td>
+        <td>${d.shift}</td>
+        <td>${d.jam}</td>
+        <td>
+          ${d.status}
+          ${isAdmin ? `<button onclick="validate(${i})" class="ml-2 text-green-500">✔</button>`:''}
+        </td>
+      </tr>
+    `;
+  });
+
+  // Ranking
+  let rank = Object.entries(count).sort((a,b)=>b[1]-a[1]);
+  const ul = document.getElementById('ranking');
+  ul.innerHTML='';
+  rank.forEach(r=>{
+    ul.innerHTML += `<li>${r[0]} - ${r[1]} hadir</li>`;
+  });
+}
+
+function absen(){
+  const nama = document.getElementById('nama').value;
+  const shift = document.getElementById('shift').value;
+  const now = new Date();
+  const jam = now.toLocaleString();
+
+  // aturan jam masuk
+  let batas;
+  if(shift === 'Shift 1'){
+    batas = new Date();
+    batas.setHours(6,0,0);
+  } else {
+    batas = new Date();
+    batas.setHours(14,0,0);
+  }
+
+  // status telat / tepat waktu
+  let status = now > batas ? 'Terlambat' : 'Tepat Waktu';
+
+  data.push({nama,shift,jam,status});
+  localStorage.setItem('absen', JSON.stringify(data));
+  render();
+}
+
+function loginAdmin(){
+  const pass = document.getElementById('adminPass').value;
+  if(pass === 'admin123'){
+    isAdmin = true;
+    alert('Admin aktif');
+    render();
+  } else {
+    alert('Password salah');
+  }
+}
+
+function validate(i){
+  data[i].status = 'Valid';
+  localStorage.setItem('absen', JSON.stringify(data));
+  render();
+}
+
+function exportExcel(){
+  let csv = 'Nama,Shift,Jam,Status\n';
+  data.forEach(d=>{
+    csv += `${d.nama},${d.shift},${d.jam},${d.status}\n`;
+  });
+
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'absensi.csv';
+  a.click();
+}
+
+render();
+</script>
+
+</body>
+</html>
